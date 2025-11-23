@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lawinen Auffrischer Pro</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel für JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS für Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body {
+            background-color: #f0f9ff; /* Winterliches Hellblau */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .card-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+        .rotate-y-180 {
+            transform: rotateY(180deg);
+        }
+        .backface-hidden {
+            backface-visibility: hidden;
+        }
+        
+        /* Diamond Animation */
+        @keyframes sparkle {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.1); filter: brightness(1.2); }
+        }
+        .animate-sparkle {
+            animation: sparkle 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        const { 
+            Plus, Trash2, RotateCcw, Save, BookOpen, Settings, X, 
+            Check, Mountain, Snowflake, Award, Clock, Gem, ChevronRight 
+        } = lucide;
+
+        // Initiale Datenstruktur mit ZWEI Decks
+        const INITIAL_DATA = {
+            basics: {
+                id: 'basics',
+                title: "Lawinen Basics",
+                description: "Grundausrüstung & Verhalten",
+                icon: "mountain",
+                lastCompleted: null,
+                cards: [
+                    { id: 101, front: "Standard-Notfallausrüstung (LVS)?", back: "LVS-Gerät, Sonde, Schaufel" },
+                    { id: 102, front: "Alpines Notsignal?", back: "6x Signal pro Minute (alle 10 Sek.), 1 Minute Pause.\nAntwort: 3x Signal pro Minute." },
+                    { id: 103, front: "Was tun bei Lawinenabgang (als Opfer)?", back: "Versuchen seitlich zu entkommen, Airbag ziehen, Atemwege schützen, Hände vors Gesicht." }
+                ]
+            },
+            advanced: {
+                id: 'advanced',
+                title: "Lawinen Advanced",
+                description: "Schneedecke & Medizin",
+                icon: "snowflake",
+                lastCompleted: null,
+                cards: [
+                    { id: 201, front: "Bedeutung 'Wumm-Geräusch'?", back: "Alarmzeichen! Setzung der Schneedecke (Bruch in der Schwachschicht). Fernauslösung möglich." },
+                    { id: 202, front: "Triebschnee erkennen?", back: "Gebundener Schnee, oft matt/stumpf, bricht spröde ('Schneebrett'). Merke: Triebschnee ist der Feind!" },
+                    { id: 203, front: "Medizin: Air-Pocket Check?", back: "Bei Bergung prüfen: Hatte der Patient eine Atemhöhle? Wichtig für Prognose & Therapie (Asphyxie vs. Hypothermie)." }
+                ]
+            }
+        };
+
+        const App = () => {
+            // State: Decks statt flachem Array
+            const [decks, setDecks] = useState(() => {
+                const saved = localStorage.getItem('lawinen-app-v2'); // Neuer Key für neue Struktur
+                return saved ? JSON.parse(saved) : INITIAL_DATA;
+            });
+
+            // App Modus & Navigation
+            const [mode, setMode] = useState('home'); // 'home', 'learning', 'editor'
+            const [activeDeckId, setActiveDeckId] = useState(null); // Welches Deck wird gerade bearbeitet/gelernt?
+
+            // Lern-Session State
+            const [learningQueue, setLearningQueue] = useState([]);
+            const [currentCard, setCurrentCard] = useState(null);
+            const [isFlipped, setIsFlipped] = useState(false);
+            const [sessionStats, setSessionStats] = useState({ learned: 0, repeated: 0 });
+
+            // Editor State
+            const [newFront, setNewFront] = useState("");
+            const [newBack, setNewBack] = useState("");
+
+            // Persistenz
+            useEffect(() => {
+                localStorage.setItem('lawinen-app-v2', JSON.stringify(decks));
+            }, [decks]);
+
+            // Icons initialisieren
+            useEffect(() => {
+                lucide.createIcons();
+            }, [mode, currentCard, isFlipped, decks]);
+
+            // --- Helper: Badge Status berechnen ---
+            const getBadgeStatus = () => {
+                const TWO_WEEKS_MS = 1209600000;
+                const now = Date.now();
+                
+                let validDecks = 0;
+                let totalDecks = Object.keys(decks).length;
+
+                Object.values(decks).forEach(deck => {
+                    if (deck.lastCompleted && (now - deck.lastCompleted < TWO_WEEKS_MS)) {
+                        validDecks++;
+                    }
+                });
+
+                if (validDecks === totalDecks && totalDecks > 0) return 'diamond';
+                if (validDecks > 0) return 'gold';
+                return 'none';
+            };
+
+            const getDaysLeft = (timestamp) => {
+                if (!timestamp) return 0;
+                const TWO_WEEKS_MS = 1209600000;
+                const now = Date.now();
+                const diff = TWO_WEEKS_MS - (now - timestamp);
+                return diff > 0 ? Math.ceil(diff / (1000 * 60 * 60 * 24)) : 0;
+            };
+
+            // --- Logik: Session ---
+
+            const startSession = (deckId) => {
+                const deck = decks[deckId];
+                if (!deck || deck.cards.length === 0) return;
+
+                setActiveDeckId(deckId);
+                const shuffled = [...deck.cards].sort(() => 0.5 - Math.random());
+                setLearningQueue(shuffled);
+                setCurrentCard(shuffled[0]);
+                setIsFlipped(false);
+                setSessionStats({ learned: 0, repeated: 0 });
+                setMode('learning');
+            };
+
+            const handleCardAction = (result) => {
+                setIsFlipped(false);
+                setTimeout(() => {
+                    const remainingQueue = learningQueue.slice(1);
+                    if (result === 'good') {
+                        setSessionStats(prev => ({ ...prev, learned: prev.learned + 1 }));
+                        if (remainingQueue.length === 0) {
+                            finishSession();
+                            return;
+                        }
+                        setLearningQueue(remainingQueue);
+                        setCurrentCard(remainingQueue[0]);
+                    } else {
+                        setSessionStats(prev => ({ ...prev, repeated: prev.repeated + 1 }));
+                        const reinsertedQueue = [...remainingQueue, currentCard];
+                        setLearningQueue(reinsertedQueue);
+                        setCurrentCard(reinsertedQueue[0]);
+                    }
+                }, 300);
+            };
+
+            const finishSession = () => {
+                // Update Timestamp nur für das aktive Deck
+                setDecks(prev => ({
+                    ...prev,
+                    [activeDeckId]: {
+                        ...prev[activeDeckId],
+                        lastCompleted: Date.now()
+                    }
+                }));
+                
+                alert(`Stapel "${decks[activeDeckId].title}" abgeschlossen!`);
+                setMode('home');
+                setActiveDeckId(null);
+            };
+
+            // --- Logik: Editor ---
+
+            const openEditor = (deckId) => {
+                setActiveDeckId(deckId);
+                setMode('editor');
+                setNewFront("");
+                setNewBack("");
+            };
+
+            const addCard = () => {
+                if (!newFront.trim() || !newBack.trim()) return;
+                const newCard = { id: Date.now(), front: newFront, back: newBack };
+                
+                setDecks(prev => ({
+                    ...prev,
+                    [activeDeckId]: {
+                        ...prev[activeDeckId],
+                        cards: [...prev[activeDeckId].cards, newCard]
+                    }
+                }));
+                setNewFront("");
+                setNewBack("");
+            };
+
+            const deleteCard = (cardId) => {
+                if(confirm("Karte wirklich löschen?")) {
+                    setDecks(prev => ({
+                        ...prev,
+                        [activeDeckId]: {
+                            ...prev[activeDeckId],
+                            cards: prev[activeDeckId].cards.filter(c => c.id !== cardId)
+                        }
+                    }));
+                }
+            };
+
+            // --- UI Components ---
+
+            const renderBadge = () => {
+                const status = getBadgeStatus();
+                if (status === 'none') return null;
+
+                const isDiamond = status === 'diamond';
+                
+                return (
+                    <div className={`absolute -top-3 -right-3 p-3 rounded-full shadow-xl border-4 border-white ${isDiamond ? 'bg-cyan-500 animate-sparkle' : 'bg-yellow-400'}`}>
+                        {isDiamond ? (
+                            <i data-lucide="gem" className="w-8 h-8 text-white"></i>
+                        ) : (
+                            <i data-lucide="award" className="w-8 h-8 text-white"></i>
+                        )}
+                    </div>
+                );
+            };
+
+            const renderHome = () => {
+                const badgeStatus = getBadgeStatus();
+                
+                return (
+                    <div className="flex flex-col items-center min-h-screen gap-8 p-6 bg-gradient-to-b from-sky-50 to-white">
+                        
+                        {/* Header Area */}
+                        <div className="text-center relative mt-8">
+                            <div className="bg-slate-800 p-8 rounded-full inline-block mb-6 relative shadow-2xl border-4 border-slate-100">
+                                <i data-lucide="mountain" className="w-16 h-16 text-sky-200"></i>
+                                {renderBadge()}
+                            </div>
+                            
+                            <h1 className="text-4xl font-extrabold text-slate-800 mb-2 tracking-tight">Lawinen Auffrischer</h1>
+                            
+                            {/* Global Status Message */}
+                            <div className="h-8">
+                                {badgeStatus === 'diamond' && (
+                                    <span className="text-cyan-600 font-bold bg-cyan-50 px-3 py-1 rounded-full border border-cyan-200 text-sm animate-pulse">
+                                        ◆ DIAMANT-STATUS AKTIV ◆
+                                    </span>
+                                )}
+                                {badgeStatus === 'gold' && (
+                                    <span className="text-yellow-600 font-bold bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200 text-sm">
+                                        ★ GOLD-STATUS (1 Stapel offen)
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Decks Grid */}
+                        <div className="grid gap-6 w-full max-w-md">
+                            {Object.values(decks).map(deck => {
+                                const days = getDaysLeft(deck.lastCompleted);
+                                const isFresh = days > 0;
+
+                                return (
+                                    <div key={deck.id} className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100 transition hover:shadow-xl hover:-translate-y-1 relative overflow-hidden group">
+                                        {/* Status Indicator Bar */}
+                                        <div className={`absolute left-0 top-0 bottom-0 w-2 ${isFresh ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
+                                        
+                                        <div className="flex justify-between items-start pl-4">
+                                            <div>
+                                                <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                                    {deck.title}
+                                                    {isFresh && <i data-lucide="check-circle" className="w-5 h-5 text-emerald-500"></i>}
+                                                </h3>
+                                                <p className="text-slate-500 text-sm mt-1">{deck.description}</p>
+                                                <p className="text-xs font-medium mt-3 text-slate-400">
+                                                    {deck.cards.length} Karten • 
+                                                    {isFresh ? <span className="text-emerald-600 ml-1">Noch {days} Tage gültig</span> : <span className="text-red-400 ml-1">Auffrischung nötig</span>}
+                                                </p>
+                                            </div>
+                                            
+                                            <div className="flex flex-col gap-2">
+                                                <button 
+                                                    onClick={() => startSession(deck.id)}
+                                                    disabled={deck.cards.length === 0}
+                                                    className={`p-3 rounded-xl shadow transition text-white ${isFresh ? 'bg-sky-600 hover:bg-sky-700' : 'bg-slate-800 hover:bg-slate-700 animate-pulse'}`}
+                                                    title="Lernen"
+                                                >
+                                                    <i data-lucide="book-open" className="w-5 h-5"></i>
+                                                </button>
+                                                <button 
+                                                    onClick={() => openEditor(deck.id)}
+                                                    className="p-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition"
+                                                    title="Bearbeiten"
+                                                >
+                                                    <i data-lucide="settings" className="w-5 h-5"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderEditor = () => {
+                const deck = decks[activeDeckId];
+                return (
+                    <div className="max-w-2xl mx-auto p-4 pb-24 min-h-screen bg-slate-50">
+                        <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm">
+                            <div>
+                                <h2 className="text-xl font-bold text-slate-800">Editor: {deck.title}</h2>
+                                <p className="text-sm text-slate-500">Neue Karten hinzufügen oder löschen</p>
+                            </div>
+                            <button onClick={() => setMode('home')} className="p-2 hover:bg-slate-100 rounded-full text-slate-500">
+                                <i data-lucide="x" className="w-6 h-6"></i>
+                            </button>
+                        </div>
+
+                        {/* Neue Karte Form */}
+                        <div className="bg-white p-6 rounded-xl shadow-md mb-8 border border-sky-100">
+                            <h3 className="font-semibold text-slate-600 mb-4 flex items-center gap-2">
+                                <i data-lucide="plus" className="w-4 h-4"></i> Karte hinzufügen
+                            </h3>
+                            <div className="space-y-4">
+                                <textarea 
+                                    value={newFront}
+                                    onChange={(e) => setNewFront(e.target.value)}
+                                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 outline-none bg-slate-50"
+                                    rows="2"
+                                    placeholder="Frage / Vorderseite..."
+                                />
+                                <textarea 
+                                    value={newBack}
+                                    onChange={(e) => setNewBack(e.target.value)}
+                                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 outline-none bg-slate-50"
+                                    rows="3"
+                                    placeholder="Antwort / Rückseite..."
+                                />
+                                <button 
+                                    onClick={addCard}
+                                    className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 rounded-lg transition shadow-sm">
+                                    Speichern
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Liste */}
+                        <div className="space-y-3">
+                            {deck.cards.slice().reverse().map(card => (
+                                <div key={card.id} className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex justify-between group">
+                                    <div className="flex-1 pr-4">
+                                        <div className="font-medium text-slate-800">{card.front}</div>
+                                        <div className="text-sm text-slate-500 mt-1 whitespace-pre-line border-t border-slate-100 pt-1">{card.back}</div>
+                                    </div>
+                                    <button 
+                                        onClick={() => deleteCard(card.id)}
+                                        className="text-red-400 hover:text-red-600 self-center p-2 opacity-50 group-hover:opacity-100 transition">
+                                        <i data-lucide="trash-2" className="w-5 h-5"></i>
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderLearning = () => {
+                if (!currentCard) return <div>Lade...</div>;
+                const deck = decks[activeDeckId];
+
+                return (
+                    <div className="flex flex-col h-screen max-w-2xl mx-auto bg-slate-50">
+                        {/* Header */}
+                        <div className="p-4 flex justify-between items-center text-slate-500 text-sm bg-white shadow-sm z-10">
+                            <button onClick={() => setMode('home')} className="hover:text-slate-800 flex items-center gap-1 font-medium">
+                                <i data-lucide="x" className="w-4 h-4"></i> Abbrechen
+                            </button>
+                            <span className="font-bold text-slate-700">{deck.title}</span>
+                            <div className="flex gap-3 text-xs md:text-sm">
+                                <span className="text-sky-700 font-bold bg-sky-50 px-2 py-1 rounded">Noch: {learningQueue.length}</span>
+                                <span className="text-emerald-600 bg-emerald-50 px-2 py-1 rounded">Fertig: {sessionStats.learned}</span>
+                            </div>
+                        </div>
+
+                        {/* Card Area */}
+                        <div className="flex-1 flex items-center justify-center p-6 perspective-1000 overflow-hidden">
+                            <div 
+                                className={`relative w-full max-w-md aspect-[4/5] md:aspect-[4/3] cursor-pointer group`}
+                                onClick={() => setIsFlipped(!isFlipped)}
+                            >
+                                <div className={`card-inner w-full h-full relative duration-500 ${isFlipped ? 'rotate-y-180' : ''}`}>
+                                    
+                                    {/* Front */}
+                                    <div className={`absolute w-full h-full bg-white rounded-2xl shadow-xl flex flex-col items-center justify-center p-8 text-center backface-hidden border-2 border-transparent ${!isFlipped ? 'border-sky-100' : ''}`}>
+                                        <span className="text-xs font-bold text-sky-200 uppercase tracking-widest bg-sky-50 px-3 py-1 rounded-full mb-6">Frage</span>
+                                        <h2 className="text-2xl md:text-3xl font-bold text-slate-800 leading-tight">
+                                            {currentCard.front}
+                                        </h2>
+                                        <div className="mt-8 text-sky-400 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 text-sm">
+                                            <i data-lucide="rotate-ccw" className="w-4 h-4"></i> Tippen zum Umdrehen
+                                        </div>
+                                    </div>
+
+                                    {/* Back */}
+                                    <div className="absolute w-full h-full bg-slate-800 rounded-2xl shadow-xl flex flex-col items-center justify-center p-8 text-center rotate-y-180 backface-hidden border border-slate-700">
+                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-700 px-3 py-1 rounded-full mb-6">Antwort</span>
+                                        <p className="text-xl md:text-2xl text-slate-100 whitespace-pre-line leading-relaxed">
+                                            {currentCard.back}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Controls */}
+                        <div className="p-6 pb-8 bg-white border-t border-slate-100">
+                            {!isFlipped ? (
+                                <button 
+                                    onClick={() => setIsFlipped(true)}
+                                    className="w-full bg-sky-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-sky-500 transition transform active:scale-[0.98]">
+                                    Antwort zeigen
+                                </button>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <button 
+                                        onClick={() => handleCardAction('again')}
+                                        className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-4 rounded-xl font-bold shadow-sm transition flex flex-col items-center justify-center gap-1">
+                                        <span className="text-lg">Nochmal</span>
+                                        <span className="text-xs font-normal opacity-75">Wiederholen</span>
+                                    </button>
+                                    
+                                    <button 
+                                        onClick={() => handleCardAction('good')}
+                                        className="bg-emerald-500 hover:bg-emerald-600 text-white py-4 rounded-xl font-bold shadow-md transition flex flex-col items-center justify-center gap-1 transform active:scale-95">
+                                        <span className="text-lg">Gewusst!</span>
+                                        <span className="text-xs font-normal opacity-75">Weiter</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="min-h-screen">
+                    {mode === 'home' && renderHome()}
+                    {mode === 'editor' && renderEditor()}
+                    {mode === 'learning' && renderLearning()}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
