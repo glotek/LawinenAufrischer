@@ -57,30 +57,40 @@
             Check, Mountain, Snowflake, Award, Clock, Gem, ChevronRight 
         } = lucide;
 
-        // Initiale Datenstruktur mit ZWEI Decks
+        // Initiale Datenstruktur mit den vom Benutzer bereitgestellten Fragen
         const INITIAL_DATA = {
             basics: {
                 id: 'basics',
                 title: "Lawinen Basics",
-                description: "Grundausrüstung & Verhalten",
+                description: "Grundlagen & Notfallverhalten",
                 icon: "mountain",
                 lastCompleted: null,
                 cards: [
-                    { id: 101, front: "Standard-Notfallausrüstung (LVS)?", back: "LVS-Gerät, Sonde, Schaufel" },
-                    { id: 102, front: "Alpines Notsignal?", back: "6x Signal pro Minute (alle 10 Sek.), 1 Minute Pause.\nAntwort: 3x Signal pro Minute." },
-                    { id: 103, front: "Was tun bei Lawinenabgang (als Opfer)?", back: "Versuchen seitlich zu entkommen, Airbag ziehen, Atemwege schützen, Hände vors Gesicht." }
+                    // Alle vorherigen Karten wurden hierher verschoben (Basics und Advanced)
+                    { id: 101, front: "Unter welcher Hangneigung sollte ich bei Warnstufe 3 auf jeden Fall bleiben?", back: "unter 35 Grad" },
+                    { id: 102, front: "Wie schätze ich die Hangneigung am besten?", back: "Messen mit Handyapp oder Schistock Methode" },
+                    { id: 103, front: "Ich beobachte wie jemand von einer Lawine mitgerissen wird, was nun? (Ablauf bis Alamierung)", back: "1. Blickkontakt zur Person halten. 2. Lawinenkegel beobachten (Verschüttungsstelle markieren/merken). 3. Alarmieren (Notruf: 140/144/112)." },
+                    { id: 104, front: "Ich beobachte wie jemand von einer Lawine mitgerissen wird, was nun? (Ablauf ab Alamierung)", back: "4. LVS auf Senden stellen, Suvhafsstart (Ort des Verschwindens) festlegen. 5. Kameradenrettung starten (LVS-Suche, Sonde, Schaufel)." },
+                    { id: 105, front: "Wie muss ich ein Lawinensuchgerät am Körper tragen?", back: "Auf Sendebetrieb unter der obersten Kleidungsschicht (direkt auf den Körper)." },
+                    { id: 201, front: "Was ist eigentlich eine Schwachschicht?", back: "Ein meist dünnes Band in der Schneedecke, das eine geringe Festigkeit aufweist und leicht bricht." },
+                    { id: 202, front: "Was ist der häufigste Grund einer Schwachschicht?", back: "Kantige, becherförmige Kristalle (Tiefenreif oder Oberflächenreif), die sich im Inneren der Schneedecke umwandeln." },
+                    { id: 203, front: "Wie entsteht eine Lawine?", back: "Eine Schwachschicht bricht durch Belastung, der darüberliegende Schneeblock (Schneebrett) rutscht auf der Gleitschicht ab." },
+                    { id: 204, front: "Wie beurteile ich ein Gelände nach seiner Lawinengefahr?", back: "3x3 Filter-Methode (Regional, Lokal, Zonen) oder Stop-or-Go-Methode." },
+                    { id: 205, front: "Ab welcher Steigung muss ich mit einem Sprung im Lawinenrisiko rechnen?", back: "Ab 30 Grad. Die meisten Lawinen gehen zwischen 30 und 45 Grad ab." },
+                    { id: 206, front: "Wie viel höher ist das Lawinenrisiko in Stufe 3 verglichen mit Stufe 1?", back: "ca 18x so hoch (Faktor 4 pro Stufe)" },
+                    { id: 207, front: "Was ist Triebschnee? Wo bildet er sich?", back: "Schnee, der durch Wind transportiert und an Lee-Hängen (windabgewandt) abgelagert wird. Er bildet Schneebretter." },
+                    { id: 208, front: "Wann entscheide ich mich einen Hang mit Abstand zu begehen/befahren? Wie viel Abstand reicht?", back: "Bei Verdacht auf Lawinengefahr (Triebschnee, Wumm-Geräusche). Mindestens 10-20 Meter Abstand halten (Staffel)." }
                 ]
             },
             advanced: {
                 id: 'advanced',
                 title: "Lawinen Advanced",
-                description: "Schneedecke & Medizin",
+                description: "Schneekunde & Taktisches Risikomanagement",
                 icon: "snowflake",
                 lastCompleted: null,
                 cards: [
-                    { id: 201, front: "Bedeutung 'Wumm-Geräusch'?", back: "Alarmzeichen! Setzung der Schneedecke (Bruch in der Schwachschicht). Fernauslösung möglich." },
-                    { id: 202, front: "Triebschnee erkennen?", back: "Gebundener Schnee, oft matt/stumpf, bricht spröde ('Schneebrett'). Merke: Triebschnee ist der Feind!" },
-                    { id: 203, front: "Medizin: Air-Pocket Check?", back: "Bei Bergung prüfen: Hatte der Patient eine Atemhöhle? Wichtig für Prognose & Therapie (Asphyxie vs. Hypothermie)." }
+                    // Neue Advanced-Karte aus der hochgeladenen Datei
+                    { id: 301, front: "Was ist ein ECT-Test?", back: "Extension Column Test: Dies ist ein Schneedeckentest, um die Schwachschicht-Anfälligkeit und die Ausbreitungsneigung eines Bruchs in einem Schneebrett zu bestimmen. Eine Schneesäule wird isoliert und stufenweise belastet. Wichtig zur Beurteilung des Risikos." }
                 ]
             }
         };
@@ -88,7 +98,8 @@
         const App = () => {
             // State: Decks statt flachem Array
             const [decks, setDecks] = useState(() => {
-                const saved = localStorage.getItem('lawinen-app-v2'); // Neuer Key für neue Struktur
+                // Neuer Key für die persistente Speicherung der 2-Stapel-Struktur
+                const saved = localStorage.getItem('lawinen-app-v2'); 
                 return saved ? JSON.parse(saved) : INITIAL_DATA;
             });
 
@@ -147,7 +158,10 @@
 
             const startSession = (deckId) => {
                 const deck = decks[deckId];
-                if (!deck || deck.cards.length === 0) return;
+                if (!deck || deck.cards.length === 0) {
+                    alert('Dieser Stapel enthält keine Karten.');
+                    return;
+                }
 
                 setActiveDeckId(deckId);
                 const shuffled = [...deck.cards].sort(() => 0.5 - Math.random());
@@ -189,9 +203,12 @@
                     }
                 }));
                 
-                alert(`Stapel "${decks[activeDeckId].title}" abgeschlossen!`);
-                setMode('home');
-                setActiveDeckId(null);
+                // Verwende window.alert() anstelle von alert() um sicherzustellen, dass die Meldung angezeigt wird
+                setTimeout(() => {
+                    alert(`Stapel "${decks[activeDeckId].title}" abgeschlossen!`);
+                    setMode('home');
+                    setActiveDeckId(null);
+                }, 300);
             };
 
             // --- Logik: Editor ---
@@ -204,7 +221,7 @@
             };
 
             const addCard = () => {
-                if (!newFront.trim() || !newBack.trim()) return;
+                if (!activeDeckId || !newFront.trim() || !newBack.trim()) return;
                 const newCard = { id: Date.now(), front: newFront, back: newBack };
                 
                 setDecks(prev => ({
@@ -219,7 +236,7 @@
             };
 
             const deleteCard = (cardId) => {
-                if(confirm("Karte wirklich löschen?")) {
+                if(window.confirm("Karte wirklich löschen?")) {
                     setDecks(prev => ({
                         ...prev,
                         [activeDeckId]: {
@@ -276,6 +293,11 @@
                                         ★ GOLD-STATUS (1 Stapel offen)
                                     </span>
                                 )}
+                                {badgeStatus === 'none' && (
+                                    <span className="text-slate-500 font-medium text-sm">
+                                        Lerne beide Stapel, um den Diamant-Status zu erreichen!
+                                    </span>
+                                )}
                             </div>
                         </div>
 
@@ -288,13 +310,13 @@
                                 return (
                                     <div key={deck.id} className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100 transition hover:shadow-xl hover:-translate-y-1 relative overflow-hidden group">
                                         {/* Status Indicator Bar */}
-                                        <div className={`absolute left-0 top-0 bottom-0 w-2 ${isFresh ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
+                                        <div className={`absolute left-0 top-0 bottom-0 w-2 ${isFresh ? 'bg-emerald-500' : 'bg-red-400'}`}></div>
                                         
                                         <div className="flex justify-between items-start pl-4">
                                             <div>
                                                 <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                                                     {deck.title}
-                                                    {isFresh && <i data-lucide="check-circle" className="w-5 h-5 text-emerald-500"></i>}
+                                                    {isFresh && <i data-lucide="check" className="w-5 h-5 text-emerald-500"></i>}
                                                 </h3>
                                                 <p className="text-slate-500 text-sm mt-1">{deck.description}</p>
                                                 <p className="text-xs font-medium mt-3 text-slate-400">
@@ -331,6 +353,8 @@
 
             const renderEditor = () => {
                 const deck = decks[activeDeckId];
+                if (!deck) return <div>Fehler: Stapel nicht gefunden.</div>;
+
                 return (
                     <div className="max-w-2xl mx-auto p-4 pb-24 min-h-screen bg-slate-50">
                         <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm">
