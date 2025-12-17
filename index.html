@@ -20,7 +20,7 @@
 
     <style>
         body {
-            background-color: #f0f9ff; /* Winterliches Hellblau */
+            background-color: #f0f9ff;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         .card-inner {
@@ -37,7 +37,6 @@
             backface-visibility: hidden;
         }
         
-        /* Diamond Animation */
         @keyframes sparkle {
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.8; transform: scale(1.1); filter: brightness(1.2); }
@@ -51,13 +50,12 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect } = React;
         const { 
-            Plus, Trash2, RotateCcw, Save, BookOpen, Settings, X, 
-            Check, Mountain, Snowflake, Award, Clock, Gem, ChevronRight 
+            Plus, Trash2, RotateCcw, BookOpen, Settings, X, 
+            Check, Mountain, Snowflake, Award, Gem 
         } = lucide;
 
-        // Initiale Datenstruktur mit den vom Benutzer bereitgestellten Fragen
         const INITIAL_DATA = {
             basics: {
                 id: 'basics',
@@ -66,20 +64,28 @@
                 icon: "mountain",
                 lastCompleted: null,
                 cards: [
-                    // Alle vorherigen Karten wurden hierher verschoben (Basics und Advanced)
-                    { id: 101, front: "Unter welcher Hangneigung sollte ich bei Warnstufe 3 auf jeden Fall bleiben?", back: "unter 35 Grad" },
-                    { id: 102, front: "Wie schätze ich die Hangneigung am besten?", back: "Messen mit Handyapp oder Schistock Methode" },
-                    { id: 103, front: "Ich beobachte wie jemand von einer Lawine mitgerissen wird, was nun? (Ablauf bis Alamierung)", back: "1. Blickkontakt zur Person halten. 2. Lawinenkegel beobachten (Verschüttungsstelle markieren/merken). 3. Alarmieren (Notruf: 140/144/112)." },
-                    { id: 104, front: "Ich beobachte wie jemand von einer Lawine mitgerissen wird, was nun? (Ablauf ab Alamierung)", back: "4. LVS auf Senden stellen, Suvhafsstart (Ort des Verschwindens) festlegen. 5. Kameradenrettung starten (LVS-Suche, Sonde, Schaufel)." },
-                    { id: 105, front: "Wie muss ich ein Lawinensuchgerät am Körper tragen?", back: "Auf Sendebetrieb unter der obersten Kleidungsschicht (direkt auf den Körper)." },
-                    { id: 201, front: "Was ist eigentlich eine Schwachschicht?", back: "Ein meist dünnes Band in der Schneedecke, das eine geringe Festigkeit aufweist und leicht bricht." },
-                    { id: 202, front: "Was ist der häufigste Grund einer Schwachschicht?", back: "Kantige, becherförmige Kristalle (Tiefenreif oder Oberflächenreif), die sich im Inneren der Schneedecke umwandeln." },
-                    { id: 203, front: "Wie entsteht eine Lawine?", back: "Eine Schwachschicht bricht durch Belastung, der darüberliegende Schneeblock (Schneebrett) rutscht auf der Gleitschicht ab." },
-                    { id: 204, front: "Wie beurteile ich ein Gelände nach seiner Lawinengefahr?", back: "3x3 Filter-Methode (Regional, Lokal, Zonen) oder Stop-or-Go-Methode." },
-                    { id: 205, front: "Ab welcher Steigung muss ich mit einem Sprung im Lawinenrisiko rechnen?", back: "Ab 30 Grad. Die meisten Lawinen gehen zwischen 30 und 45 Grad ab." },
-                    { id: 206, front: "Wie viel höher ist das Lawinenrisiko in Stufe 3 verglichen mit Stufe 1?", back: "ca 18x so hoch (Faktor 4 pro Stufe)" },
-                    { id: 207, front: "Was ist Triebschnee? Wo bildet er sich?", back: "Schnee, der durch Wind transportiert und an Lee-Hängen (windabgewandt) abgelagert wird. Er bildet Schneebretter." },
-                    { id: 208, front: "Wann entscheide ich mich einen Hang mit Abstand zu begehen/befahren? Wie viel Abstand reicht?", back: "Bei Verdacht auf Lawinengefahr (Triebschnee, Wumm-Geräusche). Mindestens 10-20 Meter Abstand halten (Staffel)." }
+                    { id: 101, front: "Unter welcher Hangneigung sollte ich bei Warnstufe 3 auf jeden Fall bleiben?", back: "Unter 35 Grad." },
+                    { id: 102, front: "Wie schätze ich die Hangneigung am besten ein?", back: "Messen mit einer Handy-App oder mit der Skistock-Methode." },
+                    { id: 103, front: "Ich beobachte, wie jemand von einer Lawine mitgerissen wird. Was ist zu tun? (Ablauf bis zur Alarmierung)", back: "1. Blickkontakt zur Person halten.\n2. Den Lawinenkegel beobachten und den Verschwindepunkt markieren.\n3. Notruf absetzen (140, 144 oder 112)." },
+                    { id: 104, front: "Ich beobachte, wie jemand von einer Lawine mitgerissen wird. Was ist nach der Alarmierung zu tun?", back: "4. Eigenes LVS auf Suchen stellen.\n5. Suchstrategie am Verschwindepunkt starten.\n6. Kameradenrettung (Grob- und Feinsuche, Punktortung mit Sonde, Ausschaufeln)." },
+                    { id: 105, front: "Wie muss man ein LVS-Gerät am Körper tragen?", back: "Auf Sendebetrieb eingestellt, unter der obersten Kleidungsschicht (nah am Körper) in der vorgesehenen Halterung." },
+                    { id: 201, front: "Was ist eigentlich eine Schwachschicht?", back: "Ein meist dünnes Band in der Schneedecke mit geringer Festigkeit, an dem Brüche entstehen und sich ausbreiten können." },
+                    { id: 202, front: "Was ist die häufigste Ursache für eine Schwachschicht?", back: "Aufbauende Umwandlung: Kantige Kristalle, Becherkristalle (Tiefenreif) oder eingeschneiter Oberflächenreif." },
+                    { id: 203, front: "Wie entsteht eine Schneebrettlawine?", back: "Ein Initialbruch in einer Schwachschicht breitet sich aus, wodurch das darüberliegende Schneebrett auf einer Gleitschicht abrutscht." },
+                    { id: 204, front: "Mit welchen Methoden beurteilt man das Gelände hinsichtlich der Lawinengefahr?", back: "3x3 Filter-Methode (Regional, Lokal, Zonal) oder strategische Entscheidungsmodelle wie Stop-or-Go." },
+                    { id: 205, front: "Ab welcher Hangneigung nimmt das Lawinenrisiko massiv zu?", back: "Ab 30 Grad. Die meisten Unfälle ereignen sich in Hängen zwischen 30 und 45 Grad." },
+                    { id: 206, front: "Wie viel höher ist das Lawinenrisiko bei Stufe 3 im Vergleich zu Stufe 1?", back: "Ca. 16-mal bis 18-mal so hoch (das Risiko vervierfacht sich pro Stufe)." },
+                    { id: 207, front: "Was ist Triebschnee und wo bildet er sich?", back: "Schnee, der vom Wind transportiert wurde. Er lagert sich vor allem an windabgewandten Hängen (Lee) sowie in Rinnen und Mulden ab." },
+                    { id: 208, front: "Wann sollte man einen Hang mit Entlastungsabständen begehen? Wie groß sollten diese sein?", back: "Bei erhöhtem Risiko (z. B. Stufe 3 oder Triebschnee). Im Aufstieg ca. 10m, in der Abfahrt deutlich mehr (einzeln fahren)." },
+                    { id: 501, front: "Was ist die grundlegende Sicherheitspflicht vor jeder Tour abseits gesicherter Pisten?", back: "Den aktuellen Lawinenlagebericht (LLB) abrufen, verstehen und die Tour darauf abstimmen." },
+                    { id: 502, front: "Wie viele Gefahrenstufen gibt es und wie heißen Stufe 1, 3 und 5?", back: "Fünf Stufen.\n1: Gering\n3: Erheblich\n5: Sehr groß" },
+                    { id: 503, front: "Welche drei Ausrüstungsgegenstände gehören zur Standard-Notfallausrüstung?", back: "LVS-Gerät, Sonde und Schaufel." },
+                    { id: 504, front: "Welche drei Eigenschaften sollte ein modernes LVS-Gerät haben?", back: "3 Antennen, Markierfunktion (für Mehrfachverschüttung) und Gruppen-Check-Funktion." },
+                    { id: 505, front: "Was ist beim LVS-Check vor Tourenbeginn wichtig?", back: "Ein systematischer Gruppen-Check (Sende- und Empfangstest). Handys sollten mind. 20 cm Abstand zum LVS haben (Interferenzgefahr)." },
+                    { id: 506, front: "Warum sind Abstände wichtig und welche Richtwerte gelten?", back: "Zur Reduzierung der Zusatzbelastung auf die Schneedecke. Aufstieg: mind. 10m; Abfahrt: Entlastungsabstände oder einzeln fahren." },
+                    { id: 507, front: "Welche drei Kernfragen zur Gefahrenbeurteilung beantwortet der LLB?", back: "1. Wie groß ist die Gefahr (Stufe)?\n2. Wo sind die Gefahrenstellen (Hanglage/Höhe)?\n3. Was ist das Hauptproblem (z. B. Altschnee, Triebschnee)?" },
+                    { id: 508, front: "Wo liegt die größte Überlebenschance bei einer Verschüttung?", back: "In der schnellen Kameradenrettung innerhalb der ersten 15 Minuten (Überlebensphase)." },
+                    { id: 509, front: "Welche Zusatzausrüstung schützt vor Kälte- und Absturzfolgen?", back: "Erste-Hilfe-Set, Biwaksack und ggf. eine Rettungsdecke." }
                 ]
             },
             advanced: {
@@ -89,51 +95,48 @@
                 icon: "snowflake",
                 lastCompleted: null,
                 cards: [
-                    // Neue Advanced-Karte aus der hochgeladenen Datei
-                    { id: 301, front: "Was ist ein ECT-Test?", back: "Extension Column Test: Dies ist ein Schneedeckentest, um die Schwachschicht-Anfälligkeit und die Ausbreitungsneigung eines Bruchs in einem Schneebrett zu bestimmen. Eine Schneesäule wird isoliert und stufenweise belastet. Wichtig zur Beurteilung des Risikos." }
+                    { id: 301, front: "Was ist ein ECT-Test?", back: "Extension Column Test: Ein Schneedeckentest zur Beurteilung der Bruchausbreitung. Eine Schneesäule wird isoliert und stufenweise belastet." },
+                    { id: 401, front: "Beschreiben Sie den nicht-linearen Anstieg der Lawinengefahr (Stufe 2 auf 3).", back: "Der Anstieg verläuft exponentiell. Das Risiko einer Unfallbeteiligung vervierfacht sich von einer Stufe zur nächsten (Faktor 4)." },
+                    { id: 402, front: "Unterschied zwischen abbauender und aufbauender Schneemetamorphose?", back: "Abbauend: Verfestigung, runde Kristalle (geringer Temp-Gradient). Aufbauend: Instabile Schwachschichten, kantige Kristalle/Becherkristalle (großer Temp-Gradient)." },
+                    { id: 403, front: "Welche fünf Hauptgefahrenmuster gibt es und welches ist am häufigsten?", back: "Neuschnee, Triebschnee, Altschnee, Nassschnee, Gleitschnee. Triebschnee ist bei ca. 73% der Unfälle das häufigste Problem." },
+                    { id: 404, front: "Warum ist das Altschneeproblem besonders heikel?", back: "Langlebige Schwachschichten tief in der Schneedecke, nicht sichtbar, Fernauslösungen möglich. Empfehlung: defensiv unter 30°." },
+                    { id: 405, front: "Hauptgefahr bei Nassschneelawinen und Gegenmaßnahmen?", back: "Spontane Auslösung durch Wassereintrag. Gegenmaßnahme: Früh starten und rechtzeitig abfahren (Zeitmanagement)." },
+                    { id: 406, front: "Warum können kleine Lawinen ein hohes Risiko darstellen?", back: "Risiko = Gefahr × Konsequenzen. Geländefallen (Felsen, Mulden) können auch bei kleinen Mengen zum Tod führen." },
+                    { id: 407, front: "Nennen Sie zwei heuristische Fallen im Lawinengelände.", back: "Vertrautheit (man kennt den Hang) und Expertenaura (man vertraut blind dem 'Anführer')." },
+                    { id: 408, front: "Was bedeutet Prozessdenken bei der Schneedeckenanalyse?", back: "Übertragung und Interpretation von lokalen Testergebnissen auf andere ähnliche Geländebereiche." },
+                    { id: 409, front: "Wie können Skitourengeher den Lawinenwarndienst unterstützen?", back: "Meldung von Beobachtungen über LAWIS oder SNOWOPS; Weitergabe von Lawinenabgängen über Notruf 140." }
                 ]
             }
         };
 
         const App = () => {
-            // State: Decks statt flachem Array
             const [decks, setDecks] = useState(() => {
-                // Neuer Key für die persistente Speicherung der 2-Stapel-Struktur
-                const saved = localStorage.getItem('lawinen-app-v2'); 
+                const saved = localStorage.getItem('lawinen-app-final'); 
                 return saved ? JSON.parse(saved) : INITIAL_DATA;
             });
 
-            // App Modus & Navigation
-            const [mode, setMode] = useState('home'); // 'home', 'learning', 'editor'
-            const [activeDeckId, setActiveDeckId] = useState(null); // Welches Deck wird gerade bearbeitet/gelernt?
-
-            // Lern-Session State
+            const [mode, setMode] = useState('home');
+            const [activeDeckId, setActiveDeckId] = useState(null);
             const [learningQueue, setLearningQueue] = useState([]);
             const [currentCard, setCurrentCard] = useState(null);
             const [isFlipped, setIsFlipped] = useState(false);
             const [sessionStats, setSessionStats] = useState({ learned: 0, repeated: 0 });
-
-            // Editor State
             const [newFront, setNewFront] = useState("");
             const [newBack, setNewBack] = useState("");
 
-            // Persistenz
             useEffect(() => {
-                localStorage.setItem('lawinen-app-v2', JSON.stringify(decks));
+                localStorage.setItem('lawinen-app-final', JSON.stringify(decks));
             }, [decks]);
 
-            // Icons initialisieren
             useEffect(() => {
                 lucide.createIcons();
             }, [mode, currentCard, isFlipped, decks]);
 
-            // --- Helper: Badge Status berechnen ---
             const getBadgeStatus = () => {
                 const TWO_WEEKS_MS = 1209600000;
                 const now = Date.now();
-                
                 let validDecks = 0;
-                let totalDecks = Object.keys(decks).length;
+                const totalDecks = Object.keys(decks).length;
 
                 Object.values(decks).forEach(deck => {
                     if (deck.lastCompleted && (now - deck.lastCompleted < TWO_WEEKS_MS)) {
@@ -154,15 +157,9 @@
                 return diff > 0 ? Math.ceil(diff / (1000 * 60 * 60 * 24)) : 0;
             };
 
-            // --- Logik: Session ---
-
             const startSession = (deckId) => {
                 const deck = decks[deckId];
-                if (!deck || deck.cards.length === 0) {
-                    alert('Dieser Stapel enthält keine Karten.');
-                    return;
-                }
-
+                if (!deck || deck.cards.length === 0) return;
                 setActiveDeckId(deckId);
                 const shuffled = [...deck.cards].sort(() => 0.5 - Math.random());
                 setLearningQueue(shuffled);
@@ -194,36 +191,18 @@
             };
 
             const finishSession = () => {
-                // Update Timestamp nur für das aktive Deck
                 setDecks(prev => ({
                     ...prev,
-                    [activeDeckId]: {
-                        ...prev[activeDeckId],
-                        lastCompleted: Date.now()
-                    }
+                    [activeDeckId]: { ...prev[activeDeckId], lastCompleted: Date.now() }
                 }));
-                
-                // Verwende window.alert() anstelle von alert() um sicherzustellen, dass die Meldung angezeigt wird
                 setTimeout(() => {
-                    alert(`Stapel "${decks[activeDeckId].title}" abgeschlossen!`);
                     setMode('home');
-                    setActiveDeckId(null);
                 }, 300);
             };
 
-            // --- Logik: Editor ---
-
-            const openEditor = (deckId) => {
-                setActiveDeckId(deckId);
-                setMode('editor');
-                setNewFront("");
-                setNewBack("");
-            };
-
             const addCard = () => {
-                if (!activeDeckId || !newFront.trim() || !newBack.trim()) return;
+                if (!newFront.trim() || !newBack.trim()) return;
                 const newCard = { id: Date.now(), front: newFront, back: newBack };
-                
                 setDecks(prev => ({
                     ...prev,
                     [activeDeckId]: {
@@ -231,12 +210,11 @@
                         cards: [...prev[activeDeckId].cards, newCard]
                     }
                 }));
-                setNewFront("");
-                setNewBack("");
+                setNewFront(""); setNewBack("");
             };
 
             const deleteCard = (cardId) => {
-                if(window.confirm("Karte wirklich löschen?")) {
+                if(confirm("Karte löschen?")) {
                     setDecks(prev => ({
                         ...prev,
                         [activeDeckId]: {
@@ -247,71 +225,53 @@
                 }
             };
 
-            // --- UI Components ---
-
-            const renderBadge = () => {
-                const status = getBadgeStatus();
-                if (status === 'none') return null;
-
-                const isDiamond = status === 'diamond';
-                
-                return (
-                    <div className={`absolute -top-3 -right-3 p-3 rounded-full shadow-xl border-4 border-white ${isDiamond ? 'bg-cyan-500 animate-sparkle' : 'bg-yellow-400'}`}>
-                        {isDiamond ? (
-                            <i data-lucide="gem" className="w-8 h-8 text-white"></i>
-                        ) : (
-                            <i data-lucide="award" className="w-8 h-8 text-white"></i>
-                        )}
-                    </div>
-                );
-            };
-
             const renderHome = () => {
                 const badgeStatus = getBadgeStatus();
-                
+                // Bereinigter Link ohne schließende Klammer am Ende
+                const videoUrl = "https://www.youtube.com/watch?v=3u_C_H99eP0";
+
                 return (
                     <div className="flex flex-col items-center min-h-screen gap-8 p-6 bg-gradient-to-b from-sky-50 to-white">
-                        
-                        {/* Header Area */}
                         <div className="text-center relative mt-8">
                             <div className="bg-slate-800 p-8 rounded-full inline-block mb-6 relative shadow-2xl border-4 border-slate-100">
                                 <i data-lucide="mountain" className="w-16 h-16 text-sky-200"></i>
-                                {renderBadge()}
+                                {badgeStatus !== 'none' && (
+                                    badgeStatus === 'diamond' ? (
+                                        <a 
+                                            href={videoUrl} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="absolute -top-3 -right-3 p-3 rounded-full shadow-xl border-4 border-white bg-cyan-500 animate-sparkle hover:scale-110 transition-transform cursor-pointer flex items-center justify-center"
+                                            title="Belohnung ansehen!"
+                                        >
+                                            <i data-lucide="gem" className="w-8 h-8 text-white"></i>
+                                        </a>
+                                    ) : (
+                                        <div className="absolute -top-3 -right-3 p-3 rounded-full shadow-xl border-4 border-white bg-yellow-400">
+                                            <i data-lucide="award" className="w-8 h-8 text-white"></i>
+                                        </div>
+                                    )
+                                )}
                             </div>
-                            
-                            <h1 className="text-4xl font-extrabold text-slate-800 mb-2 tracking-tight">Lawinen Auffrischer</h1>
-                            
-                            {/* Global Status Message */}
-                            <div className="h-8">
+                            <h1 className="text-4xl font-extrabold text-slate-800 mb-2">Lawinen Auffrischer</h1>
+                            <div className="h-12">
                                 {badgeStatus === 'diamond' && (
-                                    <span className="text-cyan-600 font-bold bg-cyan-50 px-3 py-1 rounded-full border border-cyan-200 text-sm animate-pulse">
-                                        ◆ DIAMANT-STATUS AKTIV ◆
-                                    </span>
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-cyan-600 font-bold bg-cyan-50 px-3 py-1 rounded-full text-sm">◆ DIAMANT-STATUS AKTIV ◆</span>
+                                        <p className="text-[10px] text-cyan-500 mt-1 uppercase font-bold tracking-wider">Klick auf den Diamanten!</p>
+                                    </div>
                                 )}
-                                {badgeStatus === 'gold' && (
-                                    <span className="text-yellow-600 font-bold bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200 text-sm">
-                                        ★ GOLD-STATUS (1 Stapel offen)
-                                    </span>
-                                )}
-                                {badgeStatus === 'none' && (
-                                    <span className="text-slate-500 font-medium text-sm">
-                                        Lerne beide Stapel, um den Diamant-Status zu erreichen!
-                                    </span>
-                                )}
+                                {badgeStatus === 'gold' && <span className="text-yellow-600 font-bold bg-yellow-50 px-3 py-1 rounded-full text-sm">★ GOLD-STATUS</span>}
                             </div>
                         </div>
 
-                        {/* Decks Grid */}
                         <div className="grid gap-6 w-full max-w-md">
                             {Object.values(decks).map(deck => {
                                 const days = getDaysLeft(deck.lastCompleted);
                                 const isFresh = days > 0;
-
                                 return (
-                                    <div key={deck.id} className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100 transition hover:shadow-xl hover:-translate-y-1 relative overflow-hidden group">
-                                        {/* Status Indicator Bar */}
+                                    <div key={deck.id} className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100 transition hover:-translate-y-1 relative overflow-hidden group">
                                         <div className={`absolute left-0 top-0 bottom-0 w-2 ${isFresh ? 'bg-emerald-500' : 'bg-red-400'}`}></div>
-                                        
                                         <div className="flex justify-between items-start pl-4">
                                             <div>
                                                 <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -319,26 +279,20 @@
                                                     {isFresh && <i data-lucide="check" className="w-5 h-5 text-emerald-500"></i>}
                                                 </h3>
                                                 <p className="text-slate-500 text-sm mt-1">{deck.description}</p>
-                                                <p className="text-xs font-medium mt-3 text-slate-400">
-                                                    {deck.cards.length} Karten • 
-                                                    {isFresh ? <span className="text-emerald-600 ml-1">Noch {days} Tage gültig</span> : <span className="text-red-400 ml-1">Auffrischung nötig</span>}
-                                                </p>
+                                                <div className="flex items-center gap-3 mt-3">
+                                                    <span className="text-xs font-medium text-slate-400 bg-slate-50 px-2 py-1 rounded">
+                                                        {deck.cards.length} Karten
+                                                    </span>
+                                                    <span className={`text-xs font-bold px-2 py-1 rounded ${isFresh ? 'text-emerald-600 bg-emerald-50' : 'text-red-600 bg-red-50'}`}>
+                                                        {isFresh ? `Gültig: ${days}T` : "Wiederholen!"}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            
                                             <div className="flex flex-col gap-2">
-                                                <button 
-                                                    onClick={() => startSession(deck.id)}
-                                                    disabled={deck.cards.length === 0}
-                                                    className={`p-3 rounded-xl shadow transition text-white ${isFresh ? 'bg-sky-600 hover:bg-sky-700' : 'bg-slate-800 hover:bg-slate-700 animate-pulse'}`}
-                                                    title="Lernen"
-                                                >
+                                                <button onClick={() => startSession(deck.id)} className={`p-3 rounded-xl text-white transition-all ${isFresh ? 'bg-sky-600 hover:bg-sky-700' : 'bg-slate-800 animate-pulse hover:bg-slate-900'}`}>
                                                     <i data-lucide="book-open" className="w-5 h-5"></i>
                                                 </button>
-                                                <button 
-                                                    onClick={() => openEditor(deck.id)}
-                                                    className="p-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition"
-                                                    title="Bearbeiten"
-                                                >
+                                                <button onClick={() => { setActiveDeckId(deck.id); setMode('editor'); }} className="p-3 bg-slate-100 text-slate-400 hover:text-slate-600 rounded-xl transition-colors">
                                                     <i data-lucide="settings" className="w-5 h-5"></i>
                                                 </button>
                                             </div>
@@ -351,61 +305,70 @@
                 );
             };
 
+            const renderLearning = () => {
+                if (!currentCard) return null;
+                return (
+                    <div className="flex flex-col h-screen max-w-2xl mx-auto bg-slate-50">
+                        <div className="p-4 flex justify-between items-center bg-white shadow-sm z-10">
+                            <button onClick={() => setMode('home')} className="text-slate-500 flex items-center gap-1 font-medium hover:text-red-500 transition-colors">
+                                <i data-lucide="x" className="w-4 h-4"></i> Beenden
+                            </button>
+                            <span className="font-bold text-slate-700">{decks[activeDeckId].title}</span>
+                            <span className="text-sky-700 font-bold bg-sky-50 px-2 py-1 rounded text-xs tracking-tighter">REST: {learningQueue.length}</span>
+                        </div>
+
+                        <div className="flex-1 flex items-center justify-center p-6 perspective-1000 overflow-hidden">
+                            <div className="relative w-full max-w-md aspect-[4/5] md:aspect-[4/3] cursor-pointer" onClick={() => setIsFlipped(!isFlipped)}>
+                                <div className={`card-inner w-full h-full relative duration-500 ${isFlipped ? 'rotate-y-180' : ''}`}>
+                                    <div className="absolute w-full h-full bg-white rounded-2xl shadow-xl flex flex-col items-center justify-center p-8 text-center backface-hidden border-2 border-sky-100">
+                                        <span className="text-[10px] font-black text-sky-300 uppercase tracking-[0.2em] mb-8">Frage</span>
+                                        <h2 className="text-2xl font-bold text-slate-800 leading-tight">{currentCard.front}</h2>
+                                    </div>
+                                    <div className="absolute w-full h-full bg-slate-800 rounded-2xl shadow-xl flex flex-col items-center justify-center p-8 text-center rotate-y-180 backface-hidden">
+                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-8">Antwort</span>
+                                        <p className="text-lg text-slate-100 whitespace-pre-line leading-relaxed">{currentCard.back}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6 bg-white border-t">
+                            {!isFlipped ? (
+                                <button onClick={() => setIsFlipped(true)} className="w-full bg-sky-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-sky-700 transition-colors">Antwort zeigen</button>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <button onClick={() => handleCardAction('again')} className="bg-red-50 text-red-600 py-4 rounded-xl font-bold border border-red-200 hover:bg-red-100 transition-colors">Nochmal</button>
+                                    <button onClick={() => handleCardAction('good')} className="bg-emerald-500 text-white py-4 rounded-xl font-bold shadow-md hover:bg-emerald-600 transition-colors">Gewusst!</button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            };
+
             const renderEditor = () => {
                 const deck = decks[activeDeckId];
-                if (!deck) return <div>Fehler: Stapel nicht gefunden.</div>;
-
                 return (
-                    <div className="max-w-2xl mx-auto p-4 pb-24 min-h-screen bg-slate-50">
+                    <div className="max-w-2xl mx-auto p-4 min-h-screen bg-slate-50">
                         <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm">
-                            <div>
-                                <h2 className="text-xl font-bold text-slate-800">Editor: {deck.title}</h2>
-                                <p className="text-sm text-slate-500">Neue Karten hinzufügen oder löschen</p>
-                            </div>
-                            <button onClick={() => setMode('home')} className="p-2 hover:bg-slate-100 rounded-full text-slate-500">
-                                <i data-lucide="x" className="w-6 h-6"></i>
-                            </button>
+                            <h2 className="text-xl font-bold text-slate-800">Editor: {deck.title}</h2>
+                            <button onClick={() => setMode('home')} className="p-2 text-slate-400 hover:text-slate-600 transition-colors"><i data-lucide="x" className="w-6 h-6"></i></button>
                         </div>
-
-                        {/* Neue Karte Form */}
-                        <div className="bg-white p-6 rounded-xl shadow-md mb-8 border border-sky-100">
-                            <h3 className="font-semibold text-slate-600 mb-4 flex items-center gap-2">
-                                <i data-lucide="plus" className="w-4 h-4"></i> Karte hinzufügen
-                            </h3>
+                        <div className="bg-white p-6 rounded-xl shadow-md mb-8">
                             <div className="space-y-4">
-                                <textarea 
-                                    value={newFront}
-                                    onChange={(e) => setNewFront(e.target.value)}
-                                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 outline-none bg-slate-50"
-                                    rows="2"
-                                    placeholder="Frage / Vorderseite..."
-                                />
-                                <textarea 
-                                    value={newBack}
-                                    onChange={(e) => setNewBack(e.target.value)}
-                                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 outline-none bg-slate-50"
-                                    rows="3"
-                                    placeholder="Antwort / Rückseite..."
-                                />
-                                <button 
-                                    onClick={addCard}
-                                    className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 rounded-lg transition shadow-sm">
-                                    Speichern
-                                </button>
+                                <textarea value={newFront} onChange={(e) => setNewFront(e.target.value)} className="w-full p-3 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-sky-500 outline-none transition-all" placeholder="Frage eingeben..." />
+                                <textarea value={newBack} onChange={(e) => setNewBack(e.target.value)} className="w-full p-3 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-sky-500 outline-none transition-all" placeholder="Antwort eingeben..." />
+                                <button onClick={addCard} className="w-full bg-sky-600 text-white py-2 rounded-lg font-bold hover:bg-sky-700 transition-colors">Karte hinzufügen</button>
                             </div>
                         </div>
-
-                        {/* Liste */}
-                        <div className="space-y-3">
+                        <div className="space-y-3 pb-20">
                             {deck.cards.slice().reverse().map(card => (
-                                <div key={card.id} className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex justify-between group">
+                                <div key={card.id} className="bg-white p-4 rounded-lg shadow-sm flex justify-between items-start group border border-transparent hover:border-slate-200 transition-all">
                                     <div className="flex-1 pr-4">
-                                        <div className="font-medium text-slate-800">{card.front}</div>
-                                        <div className="text-sm text-slate-500 mt-1 whitespace-pre-line border-t border-slate-100 pt-1">{card.back}</div>
+                                        <div className="font-semibold text-slate-800">{card.front}</div>
+                                        <div className="text-sm text-slate-500 mt-2 p-2 bg-slate-50 rounded italic">{card.back}</div>
                                     </div>
-                                    <button 
-                                        onClick={() => deleteCard(card.id)}
-                                        className="text-red-400 hover:text-red-600 self-center p-2 opacity-50 group-hover:opacity-100 transition">
+                                    <button onClick={() => deleteCard(card.id)} className="text-red-300 hover:text-red-500 p-2 transition-colors">
                                         <i data-lucide="trash-2" className="w-5 h-5"></i>
                                     </button>
                                 </div>
@@ -415,89 +378,11 @@
                 );
             };
 
-            const renderLearning = () => {
-                if (!currentCard) return <div>Lade...</div>;
-                const deck = decks[activeDeckId];
-
-                return (
-                    <div className="flex flex-col h-screen max-w-2xl mx-auto bg-slate-50">
-                        {/* Header */}
-                        <div className="p-4 flex justify-between items-center text-slate-500 text-sm bg-white shadow-sm z-10">
-                            <button onClick={() => setMode('home')} className="hover:text-slate-800 flex items-center gap-1 font-medium">
-                                <i data-lucide="x" className="w-4 h-4"></i> Abbrechen
-                            </button>
-                            <span className="font-bold text-slate-700">{deck.title}</span>
-                            <div className="flex gap-3 text-xs md:text-sm">
-                                <span className="text-sky-700 font-bold bg-sky-50 px-2 py-1 rounded">Noch: {learningQueue.length}</span>
-                                <span className="text-emerald-600 bg-emerald-50 px-2 py-1 rounded">Fertig: {sessionStats.learned}</span>
-                            </div>
-                        </div>
-
-                        {/* Card Area */}
-                        <div className="flex-1 flex items-center justify-center p-6 perspective-1000 overflow-hidden">
-                            <div 
-                                className={`relative w-full max-w-md aspect-[4/5] md:aspect-[4/3] cursor-pointer group`}
-                                onClick={() => setIsFlipped(!isFlipped)}
-                            >
-                                <div className={`card-inner w-full h-full relative duration-500 ${isFlipped ? 'rotate-y-180' : ''}`}>
-                                    
-                                    {/* Front */}
-                                    <div className={`absolute w-full h-full bg-white rounded-2xl shadow-xl flex flex-col items-center justify-center p-8 text-center backface-hidden border-2 border-transparent ${!isFlipped ? 'border-sky-100' : ''}`}>
-                                        <span className="text-xs font-bold text-sky-200 uppercase tracking-widest bg-sky-50 px-3 py-1 rounded-full mb-6">Frage</span>
-                                        <h2 className="text-2xl md:text-3xl font-bold text-slate-800 leading-tight">
-                                            {currentCard.front}
-                                        </h2>
-                                        <div className="mt-8 text-sky-400 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 text-sm">
-                                            <i data-lucide="rotate-ccw" className="w-4 h-4"></i> Tippen zum Umdrehen
-                                        </div>
-                                    </div>
-
-                                    {/* Back */}
-                                    <div className="absolute w-full h-full bg-slate-800 rounded-2xl shadow-xl flex flex-col items-center justify-center p-8 text-center rotate-y-180 backface-hidden border border-slate-700">
-                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-700 px-3 py-1 rounded-full mb-6">Antwort</span>
-                                        <p className="text-xl md:text-2xl text-slate-100 whitespace-pre-line leading-relaxed">
-                                            {currentCard.back}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Controls */}
-                        <div className="p-6 pb-8 bg-white border-t border-slate-100">
-                            {!isFlipped ? (
-                                <button 
-                                    onClick={() => setIsFlipped(true)}
-                                    className="w-full bg-sky-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-sky-500 transition transform active:scale-[0.98]">
-                                    Antwort zeigen
-                                </button>
-                            ) : (
-                                <div className="grid grid-cols-2 gap-4">
-                                    <button 
-                                        onClick={() => handleCardAction('again')}
-                                        className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-4 rounded-xl font-bold shadow-sm transition flex flex-col items-center justify-center gap-1">
-                                        <span className="text-lg">Nochmal</span>
-                                        <span className="text-xs font-normal opacity-75">Wiederholen</span>
-                                    </button>
-                                    
-                                    <button 
-                                        onClick={() => handleCardAction('good')}
-                                        className="bg-emerald-500 hover:bg-emerald-600 text-white py-4 rounded-xl font-bold shadow-md transition flex flex-col items-center justify-center gap-1 transform active:scale-95">
-                                        <span className="text-lg">Gewusst!</span>
-                                        <span className="text-xs font-normal opacity-75">Weiter</span>
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                );
-            };
-
             return (
-                <div className="min-h-screen">
+                <div className="min-h-screen select-none">
                     {mode === 'home' && renderHome()}
-                    {mode === 'editor' && renderEditor()}
                     {mode === 'learning' && renderLearning()}
+                    {mode === 'editor' && renderEditor()}
                 </div>
             );
         };
